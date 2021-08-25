@@ -5,14 +5,12 @@
 #   ____________________________________________________________________________
 #   Initialization                                                          ####
 
-options(mc.cores = future::availableCores())
-print(future::availableCores())
 
 ##  ............................................................................
 ##  Load packages                                                           ####
 library(argparse)
-library(scFlow)
 library(cli)
+# Note: scFlow is loaded after the mc.cores option is defined/overriden below
 
 ##  ............................................................................
 ##  Parse command-line arguments                                            ####
@@ -155,14 +153,56 @@ required$add_argument(
   required = TRUE
 )
 
+required$add_argument(
+  "--species",
+  help = "the biological species (e.g. mouse, human)",
+  default = "human",
+  required = TRUE
+)
+
+required$add_argument(
+  "--max_cores",
+  default = NULL,
+  help = "override for lower cpu core usage",
+  metavar = "N",
+  required = TRUE
+)
+
 # get command line options, if help option encountered print help and exit,
 # otherwise if options not found on command line then set defaults
 args <- parser$parse_args()
+
+options("scflow_species" = args$species)
+
 args$rescale_numerics <- as.logical(args$rescale_numerics)
 args$pseudobulk <- as.logical(args$pseudobulk)
 args$force_run <- as.logical(args$force_run)
-if(tolower(args$random_effects_var) == "null") args$random_effects_var <- NULL
+if (tolower(args$random_effects_var) == "null") args$random_effects_var <- NULL
+
+args$max_cores <- if (toupper(args$max_cores) == "NULL") NULL else {
+  as.numeric(as.character(args$max_cores))
+}
+
 args$confounding_vars <- strsplit(args$confounding_vars, ",")[[1]]
+
+#   ____________________________________________________________________________
+#   Delay Package Loading for Optional Max Cores Override
+
+n_cores <- future::availableCores(methods = "mc.cores")
+
+if (is.null(args$max_cores)) {
+  options(mc.cores = n_cores)
+} else {
+  options(mc.cores = min(args$max_cores, n_cores))
+}
+
+cli::cli_alert(sprintf(
+  "Using %s cores on system with %s available cores.",
+  getOption("mc.cores"),
+  n_cores
+))
+
+library(scFlow)
 
 #   ____________________________________________________________________________
 #   Start DE                                                                ####
@@ -180,7 +220,9 @@ if (args$pseudobulk) {
   pb_str <- "_pb"
   sce_subset <- pseudobulk_sce(
     sce_subset,
-    keep_vars = c(args$dependent_var, args$confounding_vars, args$random_effects_var),
+    keep_vars = c(
+      args$dependent_var, args$confounding_vars, args$random_effects_var
+      ),
     assay_name = "counts",
     celltype_var = args$celltype_var,
     sample_var = args$sample_var
@@ -203,17 +245,9 @@ de_results <- perform_de(
   pval_cutoff = args$pval_cutoff,
   mast_method = args$mast_method,
   force_run = args$force_run,
-  ensembl_mapping_file = args$ensembl_mappings
-  )
-
-new_dirs <- c(
-  "de_table",
-  "de_report",
-  "de_plot",
-  "de_plot_data")
-
-#make dirs
-purrr::walk(new_dirs, ~ dir.create(file.path(getwd(), .)))
+  ensembl_mapping_file = args$ensembl_mappings,
+  species = getOption("scflow_species")
+)
 
 file_name <- paste0(args$celltype, "_",
                     args$de_method, pb_str, "_")
@@ -221,30 +255,20 @@ file_name <- paste0(args$celltype, "_",
 for (result in names(de_results)) {
   if (dim(de_results[[result]])[[1]] > 0) {
     write.table(de_results[[result]],
-                file = file.path(getwd(), "de_table",
-                                 paste0(file_name, result, "_DE.tsv")),
+                file = file.path(getwd(),
+                                paste0(file_name, result, "_DE.tsv")),
                 quote = FALSE, sep = "\t", col.names = TRUE, row.names = FALSE)
-
     report_de(de_results[[result]],
-      report_folder_path = file.path(getwd(), "de_report"),
-      report_file = paste0(file_name, result, "_scflow_de_report"))
-
-    png(file.path(getwd(), "de_plot",
+              report_folder_path = file.path(getwd()),
+              report_file = paste0(file_name, result, "_scflow_de_report"))
+    print("report generated")
+    png(file.path(getwd(),
                   paste0(file_name, result, "_volcano_plot.png")),
         width = 247, height = 170, units = "mm", res = 600)
     print(attr(de_results[[result]], "plot"))
     dev.off()
 
-    p <- attr(de_results[[result]], "plot")
-    plot_data <- p$data
-    write.table(p$data,
-                file = file.path(getwd(), "de_plot_data",
-                                 paste0(file_name, result, ".tsv")),
-                quote = FALSE, sep = "\t", col.names = TRUE, row.names = FALSE)
-
   } else {
     print(sprintf("No DE genes found for %s", result))
-  }
+    }
 }
-
-

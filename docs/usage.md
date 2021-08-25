@@ -1,111 +1,151 @@
 # nf-core/scflow: Usage
 
-## :warning: Please read this documentation on the nf-core website: [https://nf-co.re/scflow/usage](https://nf-co.re/scflow/usage)
-
-> _Documentation of pipeline parameters is generated automatically from the pipeline schema and can no longer be found in markdown files._
-
 ## Introduction
 
-<!-- TODO nf-core: Add documentation about anything specific to running your pipeline. For general topics, please point to (and add to) the main nf-core website. -->
+The **nf-core/scflow** pipeline is designed to orchestrate a reproducible case/control analysis of scRNA-seq data with best-practices, at scale, from quality-control through to insight discovery.
 
-## Running the pipeline
+A pipeline run with **nf-core/scflow** requires three inputs: (1) a two-column manifest file with paths to gene-cell matrices and a unique sample key; (2) a sample sheet with sample information for each input matrix in the manifest file; and, (3) a parameters configuration file (documentation for each parameter is available at [https://nf-co.re/scflow/dev/parameters]).
 
-The typical command for running the pipeline is as follows:
-
-```bash
-nextflow run nf-core/scflow --input '*_R{1,2}.fastq.gz' -profile docker
-```
-
-This will launch the pipeline with the `docker` configuration profile. See below for more information about profiles.
-
-Note that the pipeline will create the following files in your working directory:
+A complete, automated, scalable, and reproducible case-control analysis can then be performed with a single line of code: -
 
 ```bash
-work            # Directory containing the nextflow working files
-results         # Finished results (configurable, see below)
-.nextflow_log   # Log file from Nextflow
-# Other nextflow hidden files, eg. history of pipeline runs and old logs.
+nextflow run nf-core/scflow \
+--manifest Manifest.tsv \
+--input Samplesheet.tsv \
+-c scflow_params.config \
+-profile local
 ```
+
+## Pipeline inputs
+
+### Manifest file
+
+You will need to create a manifest file with paths to the sparse matrices you would like to analyse.  Use the `manifest` parameter to specify its location: -
+
+`--manifest '[path to manifest file]'`
+
+This is a tab-separated-variable file with two columns: `key` and `filepath`. This file specifies the locations of input files for an analysis and a unique key. This unique key identifies a unique sample (single row) inside the sample sheet (discussed below). The manifest file may contain fewer samples than the sample sheet and can be revised based on QC etc. without changing the sample sheet.
+
+An example manifest file: -
+
+| key   | filepath                                           |
+| ----- | -------------------------------------------------- |
+| tavij | MS/BATCH1_outputs/C36/outs/raw_feature_bc_matrix   |
+| gavon | MS/BATCH1_outputs/C48/outs/raw_feature_bc_matrix   |
+| sisos | MS/BATCH1_outputs/C54/outs/raw_feature_bc_matrix   |
+| vubul | MS/BATCH1_outputs/MS411/outs/raw_feature_bc_matrix |
+| larim | MS/BATCH1_outputs/MS430/outs/raw_feature_bc_matrix |
+| famuv | MS/BATCH1_outputs/MS461/outs/raw_feature_bc_matrix |
+| pobas | MS/BATCH1_outputs/MS513/outs/raw_feature_bc_matrix |
+| dovim | MS/BATCH1_outputs/MS527/outs/raw_feature_bc_matrix |
+| honiz | MS/BATCH1_outputs/MS530/outs/raw_feature_bc_matrix |
+| kurus | MS/BATCH1_outputs/MS535/outs/raw_feature_bc_matrix |
+
+In this example, the `key` column is a single word proquint (pronouncable-quintuplet) identifier generated using the `ids` package in R. Any unique identifier is valid (avoid spaces and special characters).
+
+The `filepath` column of the manifest file should point to folders containing `matrix.mtx.gz`, `features.tsv.gz`, `barcodes.tsv.gz` for individual samples.  These are the raw or filtered gene-cell matrices output by CellRanger (additional inputs will be supported in the future).
+
+### Samplesheet input
+
+You will need to create a samplesheet with information about the samples you would like to analyse before running the pipeline. Use the `input` parameter to specify its location: -
+
+```console
+--input '[path to samplesheet file]'
+```
+
+An example samplesheet file: -
+
+| individual | group   | diagnosis | sex  | age  | capdate  | prepdate | seqdate | manifest |
+| ---------- | ------- | --------- | ---- | ---- | -------- | -------- | ------- | -------- |
+| C36        | Control | Control   | M    | 68   | 20180802 | 20180803 | 201808  | tavij    |
+| C48        | Control | Control   | M    | 68   | 20180803 | 20180803 | 201808  | gavon    |
+| C54        | Control | Control   | M    | 66   | 20180806 | 20180807 | 201808  | sisos    |
+| PDC05      | Control | Control   | M    | 58   | 20181002 | 20181008 | 201811  | hajov    |
+| MS527      | High    | MS        | M    | 47   | 20180807 | 20180808 | 201808  | dovim    |
+| MS535      | High    | MS        | F    | 65   | 20180806 | 20180807 | 201808  | kurus    |
+| MS430      | Low     | MS        | F    | 61   | 20180802 | 20180803 | 201808  | larim    |
+| MS461      | Low     | MS        | M    | 43   | 20180803 | 20180803 | 201808  | famuv    |
+| MS530      | Low     | MS        | M    | 42   | 20180806 | 20180807 | 201808  | honiz    |
+
+As sample sheet values may be used in figures and figure legends generated by the pipeline, relatively brief values in PascalCase are recommended. For example, `Low` is preferable to `low`, and `MS` is preferable to `MultipleSclerosis`. Spaces are not supported (e.g. `Multiple Sclerosis`).
+
+### Parameters file
+
+The parameter configuration for an analysis is defined in the `scflow_analysis.config` file in the conf directory. This file defines over 130 tunable analysis parameters. Defaults are recommended for most parameters, while those defining experimental design should be configured before a run. The pipeline supports parameter tuning with cache-based workflow resume using the -resume NextFlow feature. This feature is highly recommended for optimizing parameters which are highly sensitive to dataset size/quality differences (e.g. clustering, dimensionality reduction).
+
+The documentation for parameters are available in human-readable format [here](https://nf-co.re/scflow/parameters) or for version-specific parameters, here: `https://nf-co.re/scflow/{version}/parameters`.
+
+For your first analysis, we recommend default parameters; however, parameters containing sample sheet specific variables should be updated before starting.  These include: -
+
+* `qc_factor_vars` -- this parameter will explicitly set the variable type of named sample sheet variables to factors, to override the assumption by R that table columns which contain only numbers are numeric or integers.  In the sample sheet example above, the *capdate*, *prepdate*, and *seqdate* should all be explicitly overridden with `qc_factor_vars='capdate,prepdate,seqdate'`.
+* `integ_categorical_covariates` -- add sample sheet variables which may be sources of sample-to-sample variance here in order to examine integration performance, e.g. `integ_categorical_covariates='manifest,diagnosis,sex,group,seqdate'`.
+* `merge_facet_vars`-- optionally add categorical sample sheet variables which may be sources of batch effects here for assessment in the post-merge QC report, e.g. `merge_facet_vars='seqdate,capdate'`.
+* `cta_facet_vars`  -- optionally add categorical sample sheet variables here to evaluate cell-type metrics across classes in the cell-type metrics report, e.g. `cta_facet_vars='manifest,diagnosis,sex'`.
+* For differential gene expression (`dge_` prefix parameters) and Dirichlet differential cell-type composition (`dirich_` prefix parameters), set the `dependent_var` as the sample sheet variable of interest (e.g. diagnosis), and specify the reference class (`ref_class`) of the variable (e.g. control) if the variable is categorical.  Typically the `dge_confounding_vars` would include both cellular and sample level co-variates (e.g. `dge_confounding_vars='cngeneson,pc_mito,seqdate'`).
+
+For more details of experimental parameters, see the [parameters documentation](https://nf-co.re/scflow/parameters) or the [scFlow Manual](https://combiz.github.io/scflow-manual/).
+
+## General Nextflow
+
+### Profiles
+
+The profile parameter can provide configuration presets for different compute environments.  Switching from a local workstation analysis to a Cloud based analysis can be achieved simply by changing the profile parameter. For example, a Google Cloud analysis with automated staging of input matrices from Cloud storage (e.g. a Google Storage Bucket) can be achieved using `-profile gcp`.  Additionally, pre-configured institutional profiles for a range of university and research institution HPC systems are readily available via nf-core [https://github.com/nf-core/configs] and will be loaded dynamically at runtime.  To check if your system is available in these configs, please see the documentation [https://github.com/nf-core/configs#documentation].
+
+Additionally, the `test` profile includes a complete configuration to test the pipeline (including a dynamically loaded minimal dataset, and associated inputs: a sample sheet, manifest file, and parameters).  This may run with: -
+
+`nextflow run nf-core/scflow -profile test,<docker/singularity/institute>`
 
 ### Updating the pipeline
 
-When you run the above command, Nextflow automatically pulls the pipeline code from GitHub and stores it as a cached version. When running the pipeline after this, it will always use the cached version if available - even if the pipeline has been updated since. To make sure that you're running the latest version of the pipeline, make sure that you regularly update the cached version of the pipeline:
+When you run a `nextflow run` command, Nextflow automatically pulls the pipeline code from GitHub and stores it as a cached version. When running the pipeline after this, it will always use the cached version if available - even if the pipeline has been updated since. To make sure that you're running the latest version of the pipeline, make sure that you regularly update the cached version of the pipeline:
 
-```bash
-nextflow pull nf-core/scflow
-```
+`nextflow pull nf-core/scflow`
 
 ### Reproducibility
 
 It's a good idea to specify a pipeline version when running the pipeline on your data. This ensures that a specific version of the pipeline code and software are used when you run your pipeline. If you keep using the same tag, you'll be running the same version of the pipeline, even if there have been changes to the code since.
 
-First, go to the [nf-core/scflow releases page](https://github.com/nf-core/scflow/releases) and find the latest version number - numeric only (eg. `1.3.1`). Then specify this when running the pipeline with `-r` (one hyphen) - eg. `-r 1.3.1`.
+First, go to the **nf-core/scflow** releases page and find the latest version number - numeric only (e.g. 1.0.0). Then specify this when running the pipeline with -r (one hyphen) - eg. `-r 1.0.0`.
 
-This version number will be logged in reports when you run the pipeline, so that you'll know what you used when you look back in the future.
+This version number will be logged in reports when you run the pipeline, so that you'll know what you used when you look back in the future.  Each release will also be associated with a citable DOI.
 
-## Core Nextflow arguments
+### Additional options
 
-> **NB:** These options are part of Nextflow and use a _single_ hyphen (pipeline parameters use a double-hyphen).
+`-resume`
 
-### `-profile`
-
-Use this parameter to choose a configuration profile. Profiles can give configuration presets for different compute environments.
-
-Several generic profiles are bundled with the pipeline which instruct the pipeline to use software packaged using different methods (Docker, Singularity, Podman, Conda) - see below.
-
-> We highly recommend the use of Docker or Singularity containers for full pipeline reproducibility, however when this is not possible, Conda is also supported.
-
-The pipeline also dynamically loads configurations from [https://github.com/nf-core/configs](https://github.com/nf-core/configs) when it runs, making multiple config profiles for various institutional clusters available at run time. For more information and to see if your system is available in these configs please see the [nf-core/configs documentation](https://github.com/nf-core/configs#documentation).
-
-Note that multiple profiles can be loaded, for example: `-profile test,docker` - the order of arguments is important!
-They are loaded in sequence, so later profiles can overwrite earlier profiles.
-
-If `-profile` is not specified, the pipeline will run locally and expect all software to be installed and available on the `PATH`. This is _not_ recommended.
-
-* `docker`
-  * A generic configuration profile to be used with [Docker](https://docker.com/)
-  * Pulls software from Docker Hub: [`nfcore/scflow`](https://hub.docker.com/r/nfcore/scflow/)
-* `singularity`
-  * A generic configuration profile to be used with [Singularity](https://sylabs.io/docs/)
-  * Pulls software from Docker Hub: [`nfcore/scflow`](https://hub.docker.com/r/nfcore/scflow/)
-* `podman`
-  * A generic configuration profile to be used with [Podman](https://podman.io/)
-  * Pulls software from Docker Hub: [`nfcore/scflow`](https://hub.docker.com/r/nfcore/scflow/)
-* `conda`
-  * Please only use Conda as a last resort i.e. when it's not possible to run the pipeline with Docker, Singularity or Podman.
-  * A generic configuration profile to be used with [Conda](https://conda.io/docs/)
-  * Pulls most software from [Bioconda](https://bioconda.github.io/)
-* `test`
-  * A profile with a complete configuration for automated testing
-  * Includes links to test data so needs no other parameters
-
-### `-resume`
-
-Specify this when restarting a pipeline. Nextflow will used cached results from any pipeline steps where the inputs are the same, continuing from where it got to previously.
+Specify this when restarting a pipeline. Nextflow will use cached results from any pipeline steps where the inputs are the same, continuing from where it got to previously.
 
 You can also supply a run name to resume a specific run: `-resume [run-name]`. Use the `nextflow log` command to show previous run names.
 
-### `-c`
+`-c`
 
-Specify the path to a specific config file (this is a core Nextflow command). See the [nf-core website documentation](https://nf-co.re/usage/configuration) for more information.
+Specify the path to a specific config file (this is a core Nextflow command). See the [nf-core website documentation](https://nf-co.re/usage/configuration) for more information.  We highly recommend utilizing [Nextflow Tower](https://tower.nf/) for pipeline monitoring; your token can be passed with a custom config file.
 
-#### Custom resource requests
+## Custom configuration
 
-Each step in the pipeline has a default set of requirements for number of CPUs, memory and time. For most of the steps in the pipeline, if the job exits with an error code of `143` (exceeded requested resources) it will automatically resubmit with higher requests (2 x original, then 3 x original). If it still fails after three times then the pipeline is stopped.
+### Resource requests
 
-Whilst these default requirements will hopefully work for most people with most data, you may find that you want to customise the compute resources that the pipeline requests. You can do this by creating a custom config file. For example, to give the workflow process `star` 32GB of memory, you could use the following config:
+Whilst the default requirements set within the pipeline will hopefully work for most people and with most input data, you may find that you want to customise the compute resources that the pipeline requests. Each step in the pipeline has a default set of requirements for number of CPUs, memory and time. For most of the steps in the pipeline, if the job exits with any of the error codes specified [here](https://github.com/nf-core/rnaseq/blob/4c27ef5610c87db00c3c5a3eed10b1d161abf575/conf/base.config#L18) it will automatically be resubmitted with higher requests (2 x original, then 3 x original). If it still fails after the third attempt then the pipeline execution is stopped.
+
+For example, if the nf-core/scflow pipeline is failing after multiple re-submissions of the `PERFORM_DE` process due to an exit code of `137` this would indicate that there is an out of memory issue.
+
+To bypass this error you would need to find exactly which resources are set by the `SCFLOW_DGE` process. The quickest way is to search for `process SCFLOW_DGE` in the [nf-core/scflow Github repo](https://github.com/nf-core/scflow/search?q=process+SCFLOW_DGE). We have standardised the structure of Nextflow DSL2 pipelines such that all module files will be present in the `modules/` directory and so based on the search results the file we want is `modules/local/process/scflow/dge.nf`. If you click on the link to that file you will notice that there is a `label` directive at the top of the module that is set to [`label process_high`](https://github.com/nf-core/rnaseq/blob/4c27ef5610c87db00c3c5a3eed10b1d161abf575/modules/nf-core/software/star/align/main.nf#L9). The [Nextflow `label`](https://www.nextflow.io/docs/latest/process.html#label) directive allows us to organise workflow processes in separate groups which can be referenced in a configuration file to select and configure subset of processes having similar computing requirements. The default values for the `process_high` label are set in the pipeline's [`base.config`](https://github.com/combiz/nf-core-scflow/blob/05c2a0cfc8338bc3d6edf9fafe119438eb230589/conf/base.config#L40) which in this case is defined as 72GB. Providing you haven't set any other standard nf-core parameters to **cap** the [maximum resources](https://nf-co.re/usage/configuration#max-resources) used by the pipeline then we can try and bypass the `SCFLOW_DGE` process failure by creating a custom config file that sets at least 72GB of memory, in this case increased to 100GB. The custom config below can then be provided to the pipeline via the [`-c`](#-c) parameter as highlighted in previous sections.
 
 ```nextflow
 process {
-  withName: star {
-    memory = 32.GB
-  }
+    withName: SCFLOW_DGE {
+        memory = 100.GB
+    }
 }
 ```
 
-See the main [Nextflow documentation](https://www.nextflow.io/docs/latest/config.html) for more information.
+> **NB:** We specify just the process name i.e. `SCFLOW_DGE` in the config file and not the full task name string that is printed to screen in the error message or on the terminal whilst the pipeline is running i.e. `SCFLOW:SCFLOW_DGE`. You may get a warning suggesting that the process selector isn't recognised but you can ignore that if the process name has been specified correctly. This is something that needs to be fixed upstream in core Nextflow.
 
-If you are likely to be running `nf-core` pipelines regularly it may be a good idea to request that your custom config file is uploaded to the `nf-core/configs` git repository. Before you do this please can you test that the config file works with your pipeline of choice using the `-c` parameter (see definition above). You can then create a pull request to the `nf-core/configs` repository with the addition of your config file, associated documentation file (see examples in [`nf-core/configs/docs`](https://github.com/nf-core/configs/tree/master/docs)), and amending [`nfcore_custom.config`](https://github.com/nf-core/configs/blob/master/nfcore_custom.config) to include your custom profile.
+### nf-core/configs
+
+In most cases, you will only need to create a custom config as a one-off but if you and others within your organisation are likely to be running nf-core pipelines regularly and need to use the same settings regularly it may be a good idea to request that your custom config file is uploaded to the `nf-core/configs` git repository. Before you do this please can you test that the config file works with your pipeline of choice using the `-c` parameter. You can then create a pull request to the `nf-core/configs` repository with the addition of your config file, associated documentation file (see examples in [`nf-core/configs/docs`](https://github.com/nf-core/configs/tree/master/docs)), and amending [`nfcore_custom.config`](https://github.com/nf-core/configs/blob/master/nfcore_custom.config) to include your custom profile.
+
+See the main [Nextflow documentation](https://www.nextflow.io/docs/latest/config.html) for more information about creating your own configuration files.
 
 If you have any questions or issues please send us a message on [Slack](https://nf-co.re/join/slack) on the [`#configs` channel](https://nfcore.slack.com/channels/configs).
 
@@ -118,11 +158,11 @@ The Nextflow `-bg` flag launches Nextflow in the background, detached from your 
 Alternatively, you can use `screen` / `tmux` or similar tool to create a detached session which you can log back into at a later time.
 Some HPC setups also allow you to run nextflow within a cluster job submitted your job scheduler (from where it submits more jobs).
 
-#### Nextflow memory requirements
+### Nextflow memory requirements
 
 In some cases, the Nextflow Java virtual machines can start to request a large amount of memory.
 We recommend adding the following line to your environment to limit this (typically in `~/.bashrc` or `~./bash_profile`):
 
-```bash
+```console
 NXF_OPTS='-Xms1g -Xmx4g'
 ```

@@ -1,0 +1,8 @@
+{
+    "name": "nf-core/scflow",
+    "homePage": "https://github.com/nf-core/scflow",
+    "repos": {
+        "nf-core/modules": {
+        }
+    }
+}
