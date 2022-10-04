@@ -4,7 +4,8 @@
     nf-core/scflow
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     Github : https://github.com/nf-core/scflow
-Website: https://nf-co.re/scflow
+
+    Website: https://nf-co.re/scflow
     Slack  : https://nfcore.slack.com/channels/scflow
 ----------------------------------------------------------------------------------------
 */
