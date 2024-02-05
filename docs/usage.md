@@ -119,7 +119,7 @@ You can also supply a run name to resume a specific run: `-resume [run-name]`. U
 
 `-c`
 
-Specify the path to a specific config file (this is a core Nextflow command). See the [nf-core website documentation](https://nf-co.re/usage/configuration) for more information.  We highly recommend utilizing [Nextflow Tower](https://tower.nf/) for pipeline monitoring; your token can be passed with a custom config file.
+Specify the path to a specific config file (this is a core Nextflow command). See the [nf-core website documentation](https://nf-co.re/usage/configuration) for more information.  We highly recommend utilizing [Seqera Cloud](https://tower.nf/) for pipeline monitoring; your token can be passed with a custom config file.
 
 ## Custom configuration
 
