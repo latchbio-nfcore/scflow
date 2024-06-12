@@ -16,6 +16,11 @@
 
 ## Introduction
 
+:::warning
+This pipeline has been deprecated on June 13, 2024 because it did not meet the quality standards of nf-core.
+Please use the [nf-core/scdownstream](https://nf-co.re/scdownstream) pipeline instead.
+:::
+
 **nf-core/scflow** is a bioinformatics pipeline for scalable, reproducible, best-practice analyses of single-cell/nuclei RNA-sequencing data.
 
 The pipeline is built using [Nextflow](https://www.nextflow.io), a workflow tool to run tasks across multiple compute infrastructures in a very portable manner.  Full case/control sc/sn-RNAseq analyses can be orchestrated with a single line of code on a local workstation, high-performance computing cluster (HPC), or on Cloud services including Google Cloud, Amazon Web Services, Microsoft Azure, and Kubernetes.  It uses Docker/Singularity containers making installation trivial and results highly reproducible.
