@@ -16,10 +16,9 @@
 
 ## Introduction
 
-:::warning
-This pipeline has been deprecated on June 13, 2024 because it did not meet the quality standards of nf-core.
-Please use the [nf-core/scdownstream](https://nf-co.re/scdownstream) pipeline instead.
-:::
+> [!WARNING]
+> This pipeline has been deprecated on June 13, 2024 because it did not meet the quality standards of nf-core.
+> Please use the [nf-core/scdownstream](https://nf-co.re/scdownstream) pipeline instead.
 
 **nf-core/scflow** is a bioinformatics pipeline for scalable, reproducible, best-practice analyses of single-cell/nuclei RNA-sequencing data.
 
